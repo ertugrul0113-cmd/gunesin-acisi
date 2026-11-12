@@ -1,7 +1,7 @@
 // Güneşin Açısı — ekranlar
 (function () {
   'use strict';
-  const SURUM = '0.2';
+  const SURUM = '0.2.1';
   const $ = id => document.getElementById(id);
   const KAYIT = 'gunesinAcisi.v1';
 
@@ -310,7 +310,12 @@
     const h = location.hash.slice(1);
     if (['harita', 'saatler', 'drone', 'diger'].includes(h)) sayfaAc(h);
 
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(k => k.update()).catch(() => { });
+      // Yeni sürüm devreye girince sayfayı bir kez yenile
+      let yenilendi = !navigator.serviceWorker.controller;   // ilk kurulumda yenileme yok
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (!yenilendi) { yenilendi = true; location.reload(); } });
+    }
   }
 
   function gunKaydir(n) {
