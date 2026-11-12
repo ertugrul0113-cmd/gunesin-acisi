@@ -103,6 +103,7 @@
       L.marker(uc(k.az, R * oran), { interactive: false, opacity: ust ? 1 : .55,
         icon: L.divIcon({ className: '', html: `<div class="gok-ikon">${ikon}</div>`, iconSize: [24, 24], iconAnchor: [12, 12] }) }).addTo(cizimKatmani);
     };
+    if (veri.gm && veri.gm.alt > 0) anlik(veri.gm, css('--gm'), '🌌', .85);
     anlik(veri.ay, css('--ay'), veri.ayIkon || '🌙', .7);
     anlik(veri.gunes, css('--gunes'), '☀️', 1.05);
     if (hedef) L.polyline([merkez, hedef.getLatLng()], { color: '#ffffff', weight: 2, dashArray: '4 6', opacity: .9, interactive: false }).addTo(cizimKatmani);

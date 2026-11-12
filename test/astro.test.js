@@ -43,5 +43,20 @@ assert.strictEqual(A.gunesGunu(new Date('2026-06-21T12:00:00+02:00'), 69.65, 18.
 const e = A.ayEvre(new Date('2026-11-11T21:00:00Z'));
 assert.ok(e.buyuyen && Math.abs(e.aydinlik - 0.06) < 0.02, 'ay evresi'); gecti++;
 yakin(A.sonrakiEvre(new Date('2026-11-11T21:00:00Z'), 180), '2026-11-24T14:54:04Z', 30, 'dolunay');
+// Galaktik merkez: 41° K'de en fazla ≈ 90 - 41 - 28,9 = 20,1° yükselir
+process.env.TZ = 'Europe/Istanbul';
+delete require.cache[require.resolve('../astro.js')];
+A = require('../astro.js');
+const gcYol = A.gunlukYol(A.galaktikKonum, new Date('2026-07-15T12:00:00+03:00'), 41.0082, 28.9784, 5);
+const gcMax = Math.max(...gcYol.map(p => p.alt));
+assert.ok(gcMax > 19.5 && gcMax < 21, 'galaktik merkez en yüksek ' + gcMax); gecti++;
+// Temmuz yeni ayına yakın gece (14 Tem 2026): İstanbul'da Samanyolu iyi görünmeli; Kasım'da neredeyse hiç
+const yaz = A.geceAnalizi(new Date('2026-07-14T12:00:00+03:00'), 41.0082, 28.9784);
+const kis = A.geceAnalizi(new Date('2026-11-12T12:00:00+03:00'), 41.0082, 28.9784);
+assert.ok(yaz.gmDk > 120 && yaz.puan >= 2, 'yaz gecesi Samanyolu ' + JSON.stringify({ dk: yaz.gmDk, aysiz: yaz.aysizGmDk, p: yaz.puan })); gecti++;
+assert.ok(kis.gmDk < 60, 'kasım gecesi Samanyolu ' + kis.gmDk); gecti++;
+assert.ok(yaz.karanlikBas && yaz.karanlikSon > yaz.karanlikBas, 'karanlık aralığı'); gecti++;
+// Tromsø'da yazın astronomik karanlık yok
+assert.strictEqual(A.geceAnalizi(new Date('2026-06-21T12:00:00+02:00'), 69.65, 18.96).karanlikBas, null); gecti++;
 assert.strictEqual(A.yonAdi(0), 'K'); assert.strictEqual(A.yonAdi(247), 'BGB'); gecti++;
 console.log(`astro: ${gecti} kontrol geçti`);

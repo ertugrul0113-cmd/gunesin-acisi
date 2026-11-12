@@ -33,8 +33,51 @@
       <span><i class="kesik" style="border-color:var(--ay-dogus)"></i>Ay doğuşu</span>
       <span><i class="kesik" style="border-color:var(--ay-batis)"></i>Ay batışı</span>
       <span><i style="background:var(--ay)"></i>Ay</span>
+      <span><i style="background:var(--gm)"></i>Samanyolu</span>
     </div>
     <div id="hedefBilgi" class="hedef-bilgi gizli"></div>
+  </section>
+
+  <!-- GECE -->
+  <section id="sayfa-gece" class="sayfa">
+    <div class="kaydir">
+      <div class="alt-baslik" id="geceBaslik"></div>
+      <div class="liste" id="geceListe"></div>
+      <h3>Yıldız izi olmadan en uzun pozlama</h3>
+      <div class="liste" id="kameraAyar1"></div>
+      <div class="izgara" id="pozIzgara" style="margin-top:8px"></div>
+      <p class="kucuk">NPF kuralı keskin yıldızlar için daha güvenilirdir; 500 kuralı eski ve daha gevşek bir yöntemdir.</p>
+      <h3>Önümüzdeki 30 gece · Samanyolu</h3>
+      <div class="liste" id="geceTakvim"></div>
+      <p class="kucuk">Puan: aysız ve tam karanlıkta Samanyolu merkezinin ufkun 5° üstünde kaldığı süre. Bir geceye dokunursanız o geceye gidilir.</p>
+    </div>
+  </section>
+
+  <!-- KAMERA HESAPLARI -->
+  <section id="sayfa-kamera" class="sayfa">
+    <div class="kaydir">
+      <button class="geri-btn" data-git="diger">‹ Diğer</button>
+      <h3>Kamera</h3>
+      <div class="liste" id="kameraAyar2"></div>
+      <h3>Alan derinliği</h3>
+      <div class="liste">
+        <div class="satir"><span>Konuya mesafe (m)</span><input id="dofMesafe" type="number" step="0.1" min="0.1" inputmode="decimal" class="sayi-kutu" value="5"></div>
+      </div>
+      <div class="izgara" id="dofIzgara" style="margin-top:8px"></div>
+      <h3>ND filtre</h3>
+      <div class="liste">
+        <div class="satir"><span>Filtresiz enstantane</span><select id="ndNormal"></select></div>
+        <div class="satir"><span>Filtre</span><select id="ndFiltre"></select></div>
+      </div>
+      <div class="izgara" id="ndIzgara" style="margin-top:8px"></div>
+      <h3>Timelapse</h3>
+      <div class="liste">
+        <div class="satir"><span>Çekim süresi (dk)</span><input id="tlSure" type="number" min="1" inputmode="numeric" class="sayi-kutu" value="60"></div>
+        <div class="satir"><span>Kare aralığı (sn)</span><input id="tlAralik" type="number" min="0.5" step="0.5" inputmode="decimal" class="sayi-kutu" value="5"></div>
+        <div class="satir"><span>Video (kare/sn)</span><select id="tlFps"><option>24</option><option selected>25</option><option>30</option><option>60</option></select></div>
+      </div>
+      <div class="izgara" id="tlIzgara" style="margin-top:8px"></div>
+    </div>
   </section>
 
   <!-- DRONE -->
@@ -76,8 +119,7 @@
     <div class="kaydir">
       <h3>Araçlar</h3>
       <div class="liste">
-        <div class="satir pasif"><span>🌌 Gece / Samanyolu</span><span class="sag">Yakında</span></div>
-        <div class="satir pasif"><span>📷 Kamera hesapları</span><span class="sag">Yakında</span></div>
+        <div class="satir tik" data-git="kamera"><span>📷 Kamera hesapları</span><span class="sag">Alan derinliği, ND, timelapse ›</span></div>
         <div class="satir pasif"><span>🔭 Kamera ekranı (AR)</span><span class="sag">Yakında</span></div>
       </div>
       <h3>Ayarlar</h3>
@@ -120,12 +162,14 @@
 <nav class="sekmeler">
   <button data-sayfa="harita" class="aktif">🗺<span>Harita</span></button>
   <button data-sayfa="saatler">🕒<span>Saatler</span></button>
+  <button data-sayfa="gece">🌌<span>Gece</span></button>
   <button data-sayfa="drone">🚁<span>Drone</span></button>
   <button data-sayfa="diger">⋯<span>Diğer</span></button>
 </nav>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="astro.js"></script>
+<script src="kamera.js"></script>
 <script src="drone.js"></script>
 <script src="harita.js"></script>
 <script src="app.js"></script>

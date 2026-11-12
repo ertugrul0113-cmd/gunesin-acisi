@@ -1,7 +1,7 @@
 // Güneşin Açısı — ekranlar
 (function () {
   'use strict';
-  const SURUM = '0.2.1';
+  const SURUM = '0.3';
   const $ = id => document.getElementById(id);
   const KAYIT = 'gunesinAcisi.v1';
 
@@ -10,7 +10,8 @@
     konum: { enl: 41.0082, boy: 28.9784, ad: 'İstanbul' },
     haritaTuru: 'sokak',
     hedef: null,
-    drone: { yukseklik: 50, ruzgarSinir: Drone.VARSAYILAN.ruzgarSinir, yaricapKm: Drone.VARSAYILAN.yaricapKm }
+    drone: { yukseklik: 50, ruzgarSinir: Drone.VARSAYILAN.ruzgarSinir, yaricapKm: Drone.VARSAYILAN.yaricapKm },
+    kamera: { sensor: 'ff', mp: 24, odak: 14, diyafram: 2.8 }
   }, oku());
   let hava = null, havaHata = '', havaAnahtar = '', kp = null, havalimanlari = null;
   let gun = Astro.gunBasi(new Date());     // seçili günün başı (ms)
@@ -18,7 +19,7 @@
   let gunVerisi = null;
 
   function oku() { try { return JSON.parse(localStorage.getItem(KAYIT)) || {}; } catch (e) { return {}; } }
-  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru, hedef: durum.hedef, drone: durum.drone })); } catch (e) { } }
+  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru, hedef: durum.hedef, drone: durum.drone, kamera: durum.kamera })); } catch (e) { } }
   function simdikiDakika() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
 
   // Seçili an. Yaz saati geçişlerinde de doğru olsun diye yerel tarih üzerinden kurulur.
@@ -58,10 +59,124 @@
     $('saatKaydir').value = dakika;
     Harita.ciz({
       dogusAz: gunVerisi.g.dogusAz, batisAz: gunVerisi.g.batisAz, gunes: g,
-      ayDogusAz: gunVerisi.a.dogusAz, ayBatisAz: gunVerisi.a.batisAz, ay: a, ayIkon: ik
+      ayDogusAz: gunVerisi.a.dogusAz, ayBatisAz: gunVerisi.a.batisAz, ay: a, ayIkon: ik,
+      gm: Astro.galaktikKonum(t, enl, boy)
     });
     hedefBilgiYaz(g);
     droneCiz();
+    geceCiz();
+  }
+
+  // ---- Gece / Samanyolu ----
+  const aktifMi = ad => $('sayfa-' + ad).classList.contains('aktif');
+  const yildizlar = p => `<span class="yildiz">${'★'.repeat(p)}<span class="bos">${'★'.repeat(3 - p)}</span></span>`;
+  const PUAN_AD = ['Görünmüyor', 'Zayıf', 'İyi', 'Çok iyi'];
+  let geceOnbellek = {};
+  function geceAnaliz(gunMs) {
+    const k = durum.konum, anahtar = `${k.enl.toFixed(3)},${k.boy.toFixed(3)},${gunMs}`;
+    if (!geceOnbellek[anahtar]) {
+      if (Object.keys(geceOnbellek).length > 200) geceOnbellek = {};
+      geceOnbellek[anahtar] = Astro.geceAnalizi(new Date(gunMs), k.enl, k.boy);
+    }
+    return geceOnbellek[anahtar];
+  }
+  function zamanaGit(z, sayfa) {
+    if (Astro.gunBasi(z) !== gun) { gun = Astro.gunBasi(z); tarihYaz(); gunuHesapla(); }
+    dakika = z.getHours() * 60 + z.getMinutes();
+    if (sayfa) sayfaAc(sayfa);
+    anlikGuncelle();
+  }
+  let sonGeceAnahtar = '';
+  function geceCiz() {
+    if (!aktifMi('gece')) return;
+    const k = durum.konum, a = geceAnaliz(gun), ev = a.ayEvre;
+    const kameraAnahtar = JSON.stringify(durum.kamera);
+    pozCiz();
+    const anahtar = `${k.enl},${k.boy},${gun},${kameraAnahtar}`;
+    if (anahtar === sonGeceAnahtar) return;
+    sonGeceAnahtar = anahtar;
+    const yarin = new Date(gun); yarin.setDate(yarin.getDate() + 1);
+    $('geceBaslik').textContent = `${new Date(gun).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} – ${yarin.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} gecesi · ${k.ad || ''}`;
+    const sat = (ad, deger, zaman) => `<div class="satir ${zaman ? 'tik' : ''}" ${zaman ? `data-t="${+zaman}"` : ''}><span>${ad}</span><span class="sag">${deger}</span></div>`;
+    const sureYaz = dk => dk >= 60 ? `${Math.floor(dk / 60)} sa ${dk % 60} dk` : `${dk} dk`;
+    let html = sat('Samanyolu', `${yildizlar(a.puan)} <b>${PUAN_AD[a.puan]}</b>`);
+    html += a.karanlikBas ? sat('Tam karanlık', `<b>${saat(a.karanlikBas)} – ${saat(a.karanlikSon)}</b>`, a.karanlikBas)
+      : sat('Tam karanlık', 'Bu gece tam karanlık olmuyor');
+    html += sat(`Ay ${ayEmoji(ev.uzanim, k.enl)}`, `${ev.ad} · %${Math.round(ev.aydinlik * 100)}`);
+    if (a.karanlikBas) html += sat('Aysız karanlık', `<b>${sureYaz(a.aysizKaranlikDk)}</b>`);
+    if (a.gmBas) {
+      html += sat('Samanyolu merkezi görünür', `<b>${saat(a.gmBas)} – ${saat(a.gmSon)}</b>`, a.gmBas);
+      html += sat('Yönü', `${yon(a.gmBasAz)} → ${yon(a.gmSonAz)}`);
+      html += sat('Aysız görünme süresi', `<b>${sureYaz(a.aysizGmDk)}</b>`);
+      html += sat('En iyi an', `<b>${saat(a.enIyi.zaman)}</b> · ${yon(a.enIyi.az)} · açı ${derece(a.enIyi.alt)}`, a.enIyi.zaman);
+    } else html += sat('Samanyolu merkezi', 'Bu gece karanlıkta ufkun üstüne çıkmıyor');
+    const el = $('geceListe');
+    el.innerHTML = html;
+    el.querySelectorAll('.satir.tik').forEach(r => r.addEventListener('click', () => zamanaGit(new Date(+r.dataset.t), 'harita')));
+    // 30 gece
+    const satirlar = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(gun); d.setDate(d.getDate() + i);
+      const g = geceAnaliz(+d);
+      const ae = g.ayEvre;
+      satirlar.push(`<div class="satir tik" data-g="${+d}" data-t="${g.enIyi ? +g.enIyi.zaman : ''}">
+        <span>${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' })}</span>
+        <span class="sag">${ayEmoji(ae.uzanim, k.enl)} ${g.aysizGmDk ? sureYaz(g.aysizGmDk) + ' · ' : ''}${yildizlar(g.puan)}</span></div>`);
+    }
+    const tk = $('geceTakvim');
+    tk.innerHTML = satirlar.join('');
+    tk.querySelectorAll('.satir.tik').forEach(r => r.addEventListener('click', () => {
+      if (r.dataset.t) zamanaGit(new Date(+r.dataset.t));
+      else { gun = +r.dataset.g; tarihYaz(); gunuHesapla(); anlikGuncelle(); }
+      $('sayfa-gece').querySelector('.kaydir').scrollTop = 0;
+    }));
+  }
+
+  // ---- Kamera ayarları (Gece ve Kamera sayfalarında ortak) ----
+  function kameraAyarCiz(el) {
+    const c = durum.kamera;
+    el.innerHTML = `
+      <div class="satir"><span>Sensör</span><select data-k="sensor">${Kamera.SENSORLER.map(s => `<option value="${s.id}" ${s.id === c.sensor ? 'selected' : ''}>${s.ad}</option>`).join('')}</select></div>
+      <div class="satir"><span>Megapiksel</span><input data-k="mp" type="number" min="1" max="200" inputmode="numeric" class="sayi-kutu" value="${c.mp}"></div>
+      <div class="satir"><span>Odak uzaklığı (mm)</span><input data-k="odak" type="number" min="1" max="1200" step="1" inputmode="decimal" class="sayi-kutu" value="${c.odak}"></div>
+      <div class="satir"><span>Diyafram (f/)</span><input data-k="diyafram" type="number" min="0.7" max="64" step="0.1" inputmode="decimal" class="sayi-kutu" value="${c.diyafram}"></div>`;
+    el.querySelectorAll('[data-k]').forEach(g => g.addEventListener('change', () => {
+      const ad = g.dataset.k;
+      if (ad === 'sensor') { c.sensor = g.value; c.mp = Kamera.sensor(g.value).mp; }
+      else { const v = parseFloat(String(g.value).replace(',', '.')); if (v > 0) c[ad] = v; }
+      kaydet();
+      ['kameraAyar1', 'kameraAyar2'].forEach(id => kameraAyarCiz($(id)));
+      geceCiz(); kameraCiz();
+    }));
+  }
+  const kutu = (et, de) => `<div class="kutu"><div class="et">${et}</div><div class="de">${de}</div></div>`;
+  const sayi = (x, b) => x.toFixed(b).replace('.', ',');
+  function pozCiz() {
+    const c = durum.kamera, s = Kamera.sensor(c.sensor);
+    $('pozIzgara').innerHTML = [
+      kutu('NPF kuralı', `${Kamera.sureYaz(Kamera.npf(c.odak, c.diyafram, s, c.mp))}`),
+      kutu('500 kuralı', `${Kamera.sureYaz(Kamera.kural500(c.odak, s))}`),
+      kutu('Kırpma faktörü', `${sayi(Kamera.kirpma(s), 2)}×`),
+      kutu('Piksel aralığı', `${sayi(Kamera.pikselAraligi(s, c.mp), 1)} <small>µm</small>`)
+    ].join('');
+  }
+  const ENSTANTANELER = [1 / 8000, 1 / 4000, 1 / 2000, 1 / 1000, 1 / 500, 1 / 250, 1 / 125, 1 / 60, 1 / 30, 1 / 15, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 15, 30];
+  const NDLER = [[2, 'ND2 (1 durak)'], [4, 'ND4 (2 durak)'], [8, 'ND8 (3 durak)'], [16, 'ND16 (4 durak)'], [32, 'ND32 (5 durak)'], [64, 'ND64 (6 durak)'], [1000, 'ND1000 (10 durak)'], [32768, 'ND32K (15 durak)'], [65536, 'ND64K (16 durak)']];
+  const metre = m => !isFinite(m) ? '∞' : m < 1 ? Math.round(m * 100) + ' cm' : sayi(m, m < 10 ? 2 : 1) + ' m';
+  function kameraCiz() {
+    if (!aktifMi('kamera')) return;
+    const c = durum.kamera, s = Kamera.sensor(c.sensor);
+    const mesafeM = parseFloat(String($('dofMesafe').value).replace(',', '.')) || 5;
+    const ad = Kamera.alanDerinligi(c.odak, c.diyafram, mesafeM, s);
+    $('dofIzgara').innerHTML = [
+      kutu('Net başlangıcı', metre(ad.yakin)), kutu('Net bitişi', metre(ad.uzak)),
+      kutu('Toplam netlik', metre(ad.toplam)), kutu('Hiperfokal mesafe', metre(ad.hiperfokal))
+    ].join('');
+    const normal = ENSTANTANELER[+$('ndNormal').value], katsayi = NDLER[+$('ndFiltre').value][0];
+    const durak = Kamera.ndDurak(katsayi);
+    $('ndIzgara').innerHTML = [kutu('Filtreyle enstantane', Kamera.sureYaz(Kamera.ndSure(normal, durak))), kutu('Işık kaybı', `${sayi(durak, 1)} <small>durak</small>`)].join('');
+    const tl = Kamera.timelapse((parseFloat($('tlSure').value) || 0) * 60, parseFloat(String($('tlAralik').value).replace(',', '.')) || 1, +$('tlFps').value);
+    $('tlIzgara').innerHTML = [kutu('Kare sayısı', tl.kare), kutu('Video süresi', Kamera.sureYaz(tl.videoSn))].join('');
   }
 
   // ---- Hedef (ikinci pin) ----
@@ -268,11 +383,14 @@
   // ---- Sayfalar ----
   function sayfaAc(ad) {
     document.querySelectorAll('.sayfa').forEach(s => s.classList.toggle('aktif', s.id === 'sayfa-' + ad));
-    document.querySelectorAll('.sekmeler button').forEach(b => b.classList.toggle('aktif', b.dataset.sayfa === ad));
-    $('panel').classList.toggle('gizli', ad === 'diger');
+    const sekme = ad === 'kamera' ? 'diger' : ad;
+    document.querySelectorAll('.sekmeler button').forEach(b => b.classList.toggle('aktif', b.dataset.sayfa === sekme));
+    $('panel').classList.toggle('gizli', ad === 'diger' || ad === 'kamera');
     panelYuksekligi();
     if (ad === 'harita') setTimeout(Harita.yenile, 0);
     if (ad === 'drone') { havaYukle(); digerVeriYukle(); droneCiz(); }
+    if (ad === 'gece') { sonGeceAnahtar = ''; geceCiz(); }
+    if (ad === 'kamera') kameraCiz();
   }
   function panelYuksekligi() { document.documentElement.style.setProperty('--panel-h', $('panel').offsetHeight + 'px'); }
 
@@ -287,6 +405,11 @@
     $('yaricapKm').value = durum.drone.yaricapKm;
     $('ruzgarSinir').addEventListener('change', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (v >= 3 && v <= 20) { durum.drone.ruzgarSinir = v; kaydet(); } else e.target.value = durum.drone.ruzgarSinir; });
     $('yaricapKm').addEventListener('change', e => { const v = parseFloat(e.target.value); if (v >= 1 && v <= 50) { durum.drone.yaricapKm = v; kaydet(); } else e.target.value = durum.drone.yaricapKm; });
+    kameraAyarCiz($('kameraAyar1')); kameraAyarCiz($('kameraAyar2'));
+    $('ndNormal').innerHTML = ENSTANTANELER.map((s, i) => `<option value="${i}" ${i === 6 ? 'selected' : ''}>${Kamera.sureYaz(s)}</option>`).join('');
+    $('ndFiltre').innerHTML = NDLER.map((n, i) => `<option value="${i}" ${i === 6 ? 'selected' : ''}>${n[1]}</option>`).join('');
+    ['dofMesafe', 'ndNormal', 'ndFiltre', 'tlSure', 'tlAralik', 'tlFps'].forEach(id => $(id).addEventListener('input', kameraCiz));
+    document.querySelectorAll('[data-git]').forEach(b => b.addEventListener('click', () => sayfaAc(b.dataset.git)));
     document.querySelectorAll('#yukseklikSec button').forEach(b => b.addEventListener('click', () => { durum.drone.yukseklik = +b.dataset.h; kaydet(); anlikGuncelle(); }));
     Harita.turSec(durum.haritaTuru);
     tarihYaz(); gunuHesapla(); anlikGuncelle(); panelYuksekligi();
@@ -308,7 +431,7 @@
     document.querySelectorAll('.sekmeler button').forEach(b => b.addEventListener('click', () => sayfaAc(b.dataset.sayfa)));
     window.addEventListener('resize', panelYuksekligi);
     const h = location.hash.slice(1);
-    if (['harita', 'saatler', 'drone', 'diger'].includes(h)) sayfaAc(h);
+    if (['harita', 'saatler', 'gece', 'drone', 'diger', 'kamera'].includes(h)) sayfaAc(h);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(k => k.update()).catch(() => { });

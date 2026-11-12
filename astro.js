@@ -212,11 +212,45 @@
     return yol;
   }
 
+  // ---- Gece / Samanyolu ----
+  // Seçili günün akşamından ertesi sabaha: astronomik karanlık (güneş < -18°),
+  // galaktik merkezin (Samanyolu çekirdeği) görünür olduğu süre ve aysız kısmı.
+  function geceAnalizi(tarih, enl, boy) {
+    const d = new Date(gunBasi(tarih)); d.setHours(12, 0, 0, 0);
+    const bas = +d, son = bas + GUN_MS, ADIM = 5 * 60000;
+    const ortaGece = new Date(bas + 12 * 3600000);
+    const evre = ayEvre(ortaGece);
+    const s = {
+      karanlikBas: null, karanlikSon: null, gmBas: null, gmSon: null, gmBasAz: null, gmSonAz: null,
+      enIyi: null, gmDk: 0, aysizGmDk: 0, aysizKaranlikDk: 0, karanlikDk: 0, ayAydinlik: evre.aydinlik, ayEvre: evre
+    };
+    let enIyiPuan = -Infinity;
+    for (let t = bas; t <= son; t += ADIM) {
+      const se = gunesEkv(t), gAlt = yatay(t, se.ra, se.dec, enl, boy).alt;
+      if (gAlt >= -18) continue;
+      const gc = galaktikKonum(t, enl, boy), ay = ayKonum(t, enl, boy);
+      const aysiz = ay.alt < 0 || evre.aydinlik < 0.1;
+      if (s.karanlikBas == null) s.karanlikBas = new Date(t);
+      s.karanlikSon = new Date(t);
+      s.karanlikDk += 5; if (aysiz) s.aysizKaranlikDk += 5;
+      if (gc.alt > 5) {
+        if (s.gmBas == null) { s.gmBas = new Date(t); s.gmBasAz = gc.az; }
+        s.gmSon = new Date(t); s.gmSonAz = gc.az;
+        s.gmDk += 5; if (aysiz) s.aysizGmDk += 5;
+        const puan = gc.alt + (aysiz ? 100 : 0);       // önce aysız, sonra en yüksek
+        if (puan > enIyiPuan) { enIyiPuan = puan; s.enIyi = { zaman: new Date(t), az: gc.az, alt: gc.alt, aysiz }; }
+      }
+    }
+    const saat = s.aysizGmDk / 60;
+    s.puan = saat <= 0 ? 0 : saat < 1 ? 1 : saat < 3 ? 2 : 3;   // 0 yok, 1 zayıf, 2 iyi, 3 çok iyi
+    return s;
+  }
+
   function yonAdi(az) {
     const adlar = ['K', 'KKD', 'KD', 'DKD', 'D', 'DGD', 'GD', 'GGD', 'G', 'GGB', 'GB', 'BGB', 'B', 'BKB', 'KB', 'KKB'];
     return adlar[Math.round(norm360(az) / 22.5) % 16];
   }
 
-  const Astro = { gunesKonum, ayKonum, galaktikKonum, ayEvre, sonrakiEvre, gunesGunu, ayGunu, gunlukYol, gunBasi, yonAdi, kirilma };
+  const Astro = { gunesKonum, ayKonum, galaktikKonum, ayEvre, sonrakiEvre, gunesGunu, ayGunu, geceAnalizi, gunlukYol, gunBasi, yonAdi, kirilma };
   if (typeof module !== 'undefined' && module.exports) module.exports = Astro; else kok.Astro = Astro;
 })(typeof window !== 'undefined' ? window : globalThis);

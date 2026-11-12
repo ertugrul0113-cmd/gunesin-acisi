@@ -2,7 +2,7 @@
   --zemin: #0d1320; --yuzey: #161f31; --yuzey2: #1f2a40; --cizgi: #2a3650;
   --yazi: #eef2f8; --soluk: #8e9ab0; --vurgu: #ffb627;
   --dogus: #ffd54a; --batis: #ff7a3d; --gunes: #ffb627;
-  --ay-dogus: #9ccaff; --ay-batis: #4f8dff; --ay: #dfe9ff;
+  --ay-dogus: #9ccaff; --ay-batis: #4f8dff; --ay: #dfe9ff; --gm: #c08cff;
   --altin: rgba(255, 182, 39, .55); --mavi: rgba(79, 141, 255, .55); --gece: #0a0f1a;
   --ust-h: 52px; --sekme-h: 58px;
 }
@@ -24,7 +24,10 @@ main { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 
 .sayfa { position: absolute; inset: 0; display: none; }
 .sayfa.aktif { display: block; }
 .sayi-kutu { width: 80px; text-align: right; background: var(--yuzey2); border: 1px solid var(--cizgi); border-radius: 8px; padding: 5px 8px; }
-#sayfa-harita.aktif, #sayfa-saatler.aktif, #sayfa-drone.aktif { bottom: var(--panel-h, 170px); }
+.geri-btn { color: var(--vurgu); font-weight: 600; padding: 4px 0; }
+.yildiz { color: var(--vurgu); letter-spacing: 1px; }
+.yildiz .bos { color: var(--cizgi); }
+#sayfa-harita.aktif, #sayfa-saatler.aktif, #sayfa-drone.aktif, #sayfa-gece.aktif { bottom: var(--panel-h, 170px); }
 #harita { position: absolute; inset: 0; background: #1b2232; }
 .lejant { position: absolute; top: 8px; left: 8px; z-index: 500; display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 250px;
   background: rgba(13, 19, 32, .82); padding: 6px 9px; border-radius: 10px; font-size: 11px; color: var(--soluk); pointer-events: none; }
