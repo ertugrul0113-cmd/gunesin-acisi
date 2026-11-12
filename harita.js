@@ -7,8 +7,27 @@
     topo: ['https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 17, attribution: '© OpenTopoMap, © OpenStreetMap' }]
   };
   let harita, katman, pin, cizimKatmani, sonVeri = null;
+  let hedef = null, hedefModu = false, hedefBtn, hedefDegisti = () => { };
 
-  function kur(elId, konum, tiklayinca) {
+  function hedefKoy(latlng) {
+    if (!latlng) { if (hedef) harita.removeLayer(hedef); hedef = null; }
+    else if (hedef) hedef.setLatLng(latlng);
+    else {
+      hedef = L.marker(latlng, { draggable: true,
+        icon: L.divIcon({ className: '', html: '<div class="hedef-pin">🎯</div>', iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(harita);
+      hedef.on('drag', () => sonVeri && ciz(sonVeri));
+      hedef.on('dragend', () => hedefDegisti(hedef.getLatLng()));
+    }
+    hedefBtnYaz();
+  }
+  function hedefBtnYaz() {
+    if (!hedefBtn) return;
+    hedefBtn.textContent = hedefModu ? 'Hedefe dokunun…' : hedef ? '✕ Hedef' : '🎯 Hedef';
+    hedefBtn.classList.toggle('aktif', hedefModu);
+  }
+
+  function kur(elId, konum, tiklayinca, hedefFn, ilkHedef) {
+    hedefDegisti = hedefFn || hedefDegisti;
     harita = L.map(elId, { zoomControl: false, attributionControl: true }).setView([konum.enl, konum.boy], 14);
     turSec('sokak');
     cizimKatmani = L.layerGroup().addTo(harita);
@@ -18,8 +37,26 @@
     }).addTo(harita);
     pin.on('drag', () => sonVeri && ciz(sonVeri));
     pin.on('dragend', () => { const p = pin.getLatLng(); tiklayinca(p.lat, p.lng); });
-    harita.on('click', e => { pin.setLatLng(e.latlng); tiklayinca(e.latlng.lat, e.latlng.lng); });
+    harita.on('click', e => {
+      if (hedefModu) { hedefModu = false; hedefKoy(e.latlng); hedefDegisti(e.latlng); return; }
+      pin.setLatLng(e.latlng); tiklayinca(e.latlng.lat, e.latlng.lng);
+    });
     harita.on('zoom move resize', () => sonVeri && ciz(sonVeri));
+
+    const Kontrol = L.Control.extend({
+      onAdd() {
+        hedefBtn = L.DomUtil.create('button', 'harita-btn');
+        L.DomEvent.disableClickPropagation(hedefBtn);
+        hedefBtn.addEventListener('click', () => {
+          if (hedef && !hedefModu) { hedefKoy(null); hedefDegisti(null); }
+          else { hedefModu = !hedefModu; hedefBtnYaz(); }
+        });
+        return hedefBtn;
+      }
+    });
+    new Kontrol({ position: 'topright' }).addTo(harita);
+    if (ilkHedef) hedefKoy(L.latLng(ilkHedef.enl, ilkHedef.boy));
+    hedefBtnYaz();
   }
 
   function turSec(tur) {
@@ -68,7 +105,10 @@
     };
     anlik(veri.ay, css('--ay'), veri.ayIkon || '🌙', .7);
     anlik(veri.gunes, css('--gunes'), '☀️', 1.05);
+    if (hedef) L.polyline([merkez, hedef.getLatLng()], { color: '#ffffff', weight: 2, dashArray: '4 6', opacity: .9, interactive: false }).addTo(cizimKatmani);
   }
 
-  window.Harita = { kur, turSec, konumaGit, ciz, yenile };
+  function hedefKonum() { if (!hedef) return null; const p = hedef.getLatLng(); return { enl: p.lat, boy: p.lng }; }
+
+  window.Harita = { kur, turSec, konumaGit, ciz, yenile, hedefKonum };
 })();

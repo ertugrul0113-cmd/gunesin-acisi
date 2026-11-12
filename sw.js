@@ -1,6 +1,6 @@
 // Önce ağ, olmazsa önbellek: yeni sürüm telefona kendiliğinden gelir.
-const ONBELLEK = 'gunesin-acisi-v1';
-const DOSYALAR = ['./', 'index.html', 'style.css', 'app.js', 'astro.js', 'harita.js', 'manifest.webmanifest',
+const ONBELLEK = 'gunesin-acisi-v2';
+const DOSYALAR = ['./', 'index.html', 'style.css', 'app.js', 'astro.js', 'drone.js', 'harita.js', 'manifest.webmanifest', 'veri/havalimanlari.json',
   'ikon-180.png', 'ikon-192.png', 'ikon-512.png', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css'];
 
 self.addEventListener('install', e => {

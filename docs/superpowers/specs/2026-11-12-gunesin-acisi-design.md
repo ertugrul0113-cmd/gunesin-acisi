@@ -20,7 +20,12 @@ Kullanıcı: tek kişi (uygulama sahibi), DJI Avata 360 drone kullanıyor. Hesap
 2. **Drone**
    - Uçuş havası: Open-Meteo'dan saatlik rüzgâr (10 m, 80 m, 120 m), ani rüzgâr, yağış olasılığı,
      görüş mesafesi, sıcaklık. Sonuç: "Uç / Dikkat / Uçma". Eşikler Ayarlar'dan değiştirilebilir
-     (varsayılan değerler Avata 360'ın resmi rüzgâr direnci değerine göre konacak; kod yazılmadan önce doğrulanacak).
+     Doğrulandı (DJI resmi teknik özellikler): Avata 360 en fazla rüzgâr 10,7 m/s (Seviye 5).
+     Kurallar: uçuş yüksekliğinde rüzgâr ≥ sınır → Uçma, ≥ %70 → Dikkat; ani rüzgâr ≥ sınır → Uçma, ≥ %75 → Dikkat;
+     yağış ≥ 0,3 mm, fırtına, kar, görüş < 1 km, sıcaklık -10…40 °C dışı, Kp ≥ 7 → Uçma;
+     yağış olasılığı ≥ %40, görüş < 3 km, sıcaklık < 5 °C, Kp ≥ 5 → Dikkat.
+     Uçuş yüksekliği seçilir (20/50/80/120 m); rüzgâr 10/80/120 m değerlerinden ara değerle bulunur.
+     Kp (manyetik fırtına) NOAA SWPC'den alınır.
    - Çekim planı: haritada drone konumu; oradan güneşin/ayın yönü ve yüksekliği, seçilen saatte.
    - Havalimanı uyarısı: herkese açık OurAirports listesinden Türkiye havalimanları uygulamaya gömülür;
      en yakın havalimanları ve uzaklıkları gösterilir. Uyarı yarıçapı Ayarlar'dan değiştirilebilir.

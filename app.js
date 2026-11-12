@@ -1,21 +1,24 @@
 // Güneşin Açısı — ekranlar
 (function () {
   'use strict';
-  const SURUM = '0.1';
+  const SURUM = '0.2';
   const $ = id => document.getElementById(id);
   const KAYIT = 'gunesinAcisi.v1';
 
   // ---- Durum ----
   const durum = Object.assign({
     konum: { enl: 41.0082, boy: 28.9784, ad: 'İstanbul' },
-    haritaTuru: 'sokak'
+    haritaTuru: 'sokak',
+    hedef: null,
+    drone: { yukseklik: 50, ruzgarSinir: Drone.VARSAYILAN.ruzgarSinir, yaricapKm: Drone.VARSAYILAN.yaricapKm }
   }, oku());
+  let hava = null, havaHata = '', havaAnahtar = '', kp = null, havalimanlari = null;
   let gun = Astro.gunBasi(new Date());     // seçili günün başı (ms)
   let dakika = simdikiDakika();             // 0..1439
   let gunVerisi = null;
 
   function oku() { try { return JSON.parse(localStorage.getItem(KAYIT)) || {}; } catch (e) { return {}; } }
-  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru })); } catch (e) { } }
+  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru, hedef: durum.hedef, drone: durum.drone })); } catch (e) { } }
   function simdikiDakika() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
 
   // Seçili an. Yaz saati geçişlerinde de doğru olsun diye yerel tarih üzerinden kurulur.
@@ -57,6 +60,111 @@
       dogusAz: gunVerisi.g.dogusAz, batisAz: gunVerisi.g.batisAz, gunes: g,
       ayDogusAz: gunVerisi.a.dogusAz, ayBatisAz: gunVerisi.a.batisAz, ay: a, ayIkon: ik
     });
+    hedefBilgiYaz(g);
+    droneCiz();
+  }
+
+  // ---- Hedef (ikinci pin) ----
+  function hedefHesap(g) {
+    const h = durum.hedef; if (!h) return null;
+    const k = durum.konum;
+    const km = Drone.mesafeKm(k.enl, k.boy, h.enl, h.boy), az = Drone.yonAci(k.enl, k.boy, h.enl, h.boy);
+    return { km, az, isik: Drone.isikTipi(az, g.az, g.alt), egim: Drone.kameraEgimi(durum.drone.yukseklik, km * 1000) };
+  }
+  const mesafe = km => km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(2).replace('.', ',') + ' km';
+  function hedefBilgiYaz(g) {
+    const el = $('hedefBilgi'), h = hedefHesap(g);
+    if (!h) { el.classList.add('gizli'); return; }
+    el.classList.remove('gizli');
+    el.innerHTML = `🎯 <b>${mesafe(h.km)}</b> · yön <b>${yon(h.az)}</b>` +
+      (h.isik.fark != null ? ` · güneşle fark <b>${Math.round(h.isik.fark)}°</b>` : ' · güneş ufkun altında');
+  }
+
+  // ---- Drone ----
+  const SEVIYE = ['UÇ', 'DİKKAT', 'UÇMA'];
+  const ms1 = v => v == null ? '—' : v.toFixed(1).replace('.', ',');
+  const okIsareti = yonDer => yonDer == null ? '' : `<span class="ok" style="transform:rotate(${Math.round(yonDer + 180)}deg)">↑</span>`;
+
+  function havaSaati(t) {
+    if (!hava) return null;
+    const s = Math.floor(+t / 3600000) * 3600000;
+    const x = hava.find(h => +h.zaman === s);
+    return x ? Object.assign({ kp: Drone.kpBul(kp, t) }, x) : null;
+  }
+
+  function droneCiz() {
+    if (!$('sayfa-drone').classList.contains('aktif')) return;
+    const t = secilenAn(), ayar = durum.drone;
+    document.querySelectorAll('#yukseklikSec button').forEach(b => b.classList.toggle('aktif', +b.dataset.h === ayar.yukseklik));
+    const kart = $('kararKart'), s = havaSaati(t);
+    if (!s) {
+      kart.className = 'karar-kart s1';
+      kart.innerHTML = `<div class="ust-satir"><span class="buyuk">${hava ? 'Tahmin yok' : havaHata ? 'Hava alınamadı' : 'Yükleniyor…'}</span></div>
+        <div class="kucuk">${hava ? 'Hava tahmini dünden itibaren 7 gün için var. Tarihi değiştirin.' : havaHata || 'Hava durumu alınıyor.'}</div>`;
+      $('havaIzgara').innerHTML = ''; $('saatlikListe').innerHTML = '';
+    } else {
+      const k = Drone.karar(s, ayar);
+      kart.className = 'karar-kart s' + k.seviye;
+      kart.innerHTML = `<div class="ust-satir"><span class="buyuk">${SEVIYE[k.seviye]}</span><span>${saat(t)} · ${ayar.yukseklik} m</span></div>` +
+        (k.nedenler.length ? `<ul>${k.nedenler.map(n => `<li>${n.metin}</li>`).join('')}</ul>` : '<div class="kucuk">Rüzgâr, yağış, görüş ve sıcaklık uygun.</div>');
+      const kutu = (et, de) => `<div class="kutu"><div class="et">${et}</div><div class="de">${de}</div></div>`;
+      $('havaIzgara').innerHTML = [
+        kutu(`Rüzgâr ${ayar.yukseklik} m`, `${ms1(k.ruzgar)} <small>m/s · ${Math.round((k.ruzgar || 0) * 3.6)} km/sa</small> ${okIsareti(s.yon120)}`),
+        kutu('Rüzgâr yerde (10 m)', `${ms1(s.ruzgar10)} <small>m/s</small> ${okIsareti(s.yon10)}`),
+        kutu('Ani rüzgâr (yerde)', `${ms1(s.ani10)} <small>m/s</small>`),
+        kutu('Yağış', `%${s.yagisOlas ?? '—'} <small>${ms1(s.yagis)} mm</small>`),
+        kutu('Görüş', s.gorus == null ? '—' : s.gorus >= 10000 ? '10+ <small>km</small>' : `${ms1(s.gorus / 1000)} <small>km</small>`),
+        kutu('Sıcaklık', `${s.sicaklik == null ? '—' : Math.round(s.sicaklik)} <small>°C</small>`),
+        kutu('Bulut', `%${s.bulut ?? '—'}`),
+        kutu('Manyetik (Kp)', s.kp == null ? '—' : ms1(s.kp))
+      ].join('');
+      // Saat saat (seçili gün)
+      const gunSon = new Date(gun); gunSon.setDate(gunSon.getDate() + 1);
+      const sec = Math.floor(+t / 3600000) * 3600000;
+      const satirlar = hava.filter(h => +h.zaman >= gun && h.zaman < gunSon).map(h => {
+        const hk = Drone.karar(Object.assign({ kp: Drone.kpBul(kp, h.zaman) }, h), ayar);
+        return `<div class="satir tik ${+h.zaman === sec ? 'secili' : ''}" data-t="${+h.zaman}">
+          <span><span class="nokta s${hk.seviye}"></span>${saat(h.zaman)}</span>
+          <span class="sag"><b>${ms1(hk.ruzgar)}</b> m/s ${okIsareti(h.yon120)} · ani ${ms1(h.ani10)} · %${h.yagisOlas ?? '—'} · ${Math.round(h.sicaklik)}°</span></div>`;
+      });
+      const liste = $('saatlikListe');
+      liste.innerHTML = satirlar.join('') || '<div class="satir pasif">Bu gün için tahmin yok</div>';
+      liste.querySelectorAll('.satir.tik').forEach(r => r.addEventListener('click', () => {
+        const z = new Date(+r.dataset.t); dakika = z.getHours() * 60 + z.getMinutes(); anlikGuncelle();
+      }));
+    }
+    // Havalimanları
+    const hl = $('havalimaniListe');
+    if (!havalimanlari) hl.innerHTML = '<div class="satir pasif">Yükleniyor…</div>';
+    else {
+      const k = durum.konum, yakin = Drone.enYakinHavalimanlari(k.enl, k.boy, havalimanlari, 3);
+      const icinde = yakin.filter(h => h.km <= ayar.yaricapKm);
+      hl.innerHTML = (icinde.length ? `<div class="satir uyari"><span>⚠️ ${ayar.yaricapKm} km içinde havalimanı var — uçuş izni gerekebilir</span></div>` : '') +
+        yakin.map(h => `<div class="satir ${h.km <= ayar.yaricapKm ? 'uyari' : ''}"><span>${h.tur === 'k' ? '🛩' : '✈️'} ${h.ad}${h.kod ? ' (' + h.kod + ')' : ''}</span><span class="sag"><b>${mesafe(h.km)}</b></span></div>`).join('');
+    }
+    // Güneş ve hedef
+    const k = durum.konum, g = Astro.gunesKonum(t, k.enl, k.boy), h = hedefHesap(g);
+    const sat = (a, b) => `<div class="satir"><span>${a}</span><span class="sag">${b}</span></div>`;
+    $('hedefListe').innerHTML = sat('Güneş (drone konumundan)', `<b>${yon(g.az)}</b> · açı ${aci(g.alt)}`) +
+      (h ? sat('Hedefe mesafe', `<b>${mesafe(h.km)}</b>`) + sat('Hedefin yönü', `<b>${yon(h.az)}</b>`) +
+        sat('Işık', h.isik.ad + (h.isik.fark != null ? ` (${Math.round(h.isik.fark)}°)` : '')) +
+        sat(`Kamera eğimi (${ayar.yukseklik} m'den)`, `<b>${Math.round(h.egim)}°</b> aşağı`)
+        : sat('Hedef', 'Konulmadı'));
+  }
+
+  async function havaYukle() {
+    const k = durum.konum, anahtar = k.enl.toFixed(2) + ',' + k.boy.toFixed(2);
+    if (anahtar === havaAnahtar && hava) return;
+    havaAnahtar = anahtar; havaHata = ''; hava = null; droneCiz();
+    try {
+      const v = await Drone.havaGetir(k.enl, k.boy);
+      if (anahtar === havaAnahtar) hava = v;
+    } catch (e) { havaHata = navigator.onLine === false ? 'İnternet yok.' : 'Hava servisine ulaşılamadı. Biraz sonra tekrar deneyin.'; havaAnahtar = ''; }
+    droneCiz();
+  }
+  async function digerVeriYukle() {
+    if (!kp) Drone.kpGetir().then(v => { kp = v; droneCiz(); }).catch(() => { });
+    if (!havalimanlari) fetch('veri/havalimanlari.json').then(r => r.json()).then(v => { havalimanlari = v; droneCiz(); }).catch(() => { });
   }
 
   // Kaydırıcının arkasına günün renkleri: gece / mavi saat / altın saat / gündüz
@@ -130,7 +238,7 @@
     Harita.konumaGit(enl, boy, ortala);
     kaydet(); gunuHesapla(); anlikGuncelle();
     clearTimeout(adZamanlayici);
-    adZamanlayici = setTimeout(() => yerAdiBul(enl, boy), 800);
+    adZamanlayici = setTimeout(() => { yerAdiBul(enl, boy); havaYukle(); }, 800);
   }
 
   async function yerAdiBul(enl, boy) {
@@ -164,6 +272,7 @@
     $('panel').classList.toggle('gizli', ad === 'diger');
     panelYuksekligi();
     if (ad === 'harita') setTimeout(Harita.yenile, 0);
+    if (ad === 'drone') { havaYukle(); digerVeriYukle(); droneCiz(); }
   }
   function panelYuksekligi() { document.documentElement.style.setProperty('--panel-h', $('panel').offsetHeight + 'px'); }
 
@@ -172,7 +281,13 @@
     $('surum').textContent = SURUM;
     $('konumAd').textContent = '📍 ' + (durum.konum.ad || '');
     $('haritaTuru').value = durum.haritaTuru;
-    Harita.kur('harita', durum.konum, (enl, boy) => konumDegisti(enl, boy, false));
+    Harita.kur('harita', durum.konum, (enl, boy) => konumDegisti(enl, boy, false),
+      p => { durum.hedef = p ? { enl: p.lat, boy: p.lng } : null; kaydet(); anlikGuncelle(); }, durum.hedef);
+    $('ruzgarSinir').value = durum.drone.ruzgarSinir;
+    $('yaricapKm').value = durum.drone.yaricapKm;
+    $('ruzgarSinir').addEventListener('change', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (v >= 3 && v <= 20) { durum.drone.ruzgarSinir = v; kaydet(); } else e.target.value = durum.drone.ruzgarSinir; });
+    $('yaricapKm').addEventListener('change', e => { const v = parseFloat(e.target.value); if (v >= 1 && v <= 50) { durum.drone.yaricapKm = v; kaydet(); } else e.target.value = durum.drone.yaricapKm; });
+    document.querySelectorAll('#yukseklikSec button').forEach(b => b.addEventListener('click', () => { durum.drone.yukseklik = +b.dataset.h; kaydet(); anlikGuncelle(); }));
     Harita.turSec(durum.haritaTuru);
     tarihYaz(); gunuHesapla(); anlikGuncelle(); panelYuksekligi();
     // Kayıtlı ad koordinat ise yeniden dene
@@ -193,7 +308,7 @@
     document.querySelectorAll('.sekmeler button').forEach(b => b.addEventListener('click', () => sayfaAc(b.dataset.sayfa)));
     window.addEventListener('resize', panelYuksekligi);
     const h = location.hash.slice(1);
-    if (['harita', 'saatler', 'diger'].includes(h)) sayfaAc(h);
+    if (['harita', 'saatler', 'drone', 'diger'].includes(h)) sayfaAc(h);
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
   }

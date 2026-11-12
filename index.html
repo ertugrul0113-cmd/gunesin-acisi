@@ -34,6 +34,28 @@
       <span><i class="kesik" style="border-color:var(--ay-batis)"></i>Ay batışı</span>
       <span><i style="background:var(--ay)"></i>Ay</span>
     </div>
+    <div id="hedefBilgi" class="hedef-bilgi gizli"></div>
+  </section>
+
+  <!-- DRONE -->
+  <section id="sayfa-drone" class="sayfa">
+    <div class="kaydir">
+      <div id="kararKart" class="karar-kart s0"><div class="ust-satir"><span class="buyuk">…</span><span id="kararSaat"></span></div></div>
+      <h3>Uçuş yüksekliği</h3>
+      <div class="secici" id="yukseklikSec">
+        <button data-h="20">20 m</button><button data-h="50">50 m</button><button data-h="80">80 m</button><button data-h="120">120 m</button>
+      </div>
+      <h3>Bu saatte hava</h3>
+      <div class="izgara" id="havaIzgara"></div>
+      <h3>Saat saat</h3>
+      <div class="liste" id="saatlikListe"></div>
+      <h3>Havalimanları</h3>
+      <div class="liste" id="havalimaniListe"></div>
+      <p class="kucuk">Bu kesin yasak bölge bilgisi değildir. Uçmadan önce DJI Fly uygulamasındaki uyarılara ve SHGM İHA kurallarına bakın.</p>
+      <h3>Güneş ve hedef</h3>
+      <div class="liste" id="hedefListe"></div>
+      <p class="kucuk">Hedef koymak için Harita'da sağ üstteki "🎯 Hedef" düğmesine basıp çekeceğiniz yere dokunun. Kırmızı pin drone'un konumudur.</p>
+    </div>
   </section>
 
   <!-- SAATLER -->
@@ -54,7 +76,6 @@
     <div class="kaydir">
       <h3>Araçlar</h3>
       <div class="liste">
-        <div class="satir pasif"><span>🚁 Drone</span><span class="sag">Yakında</span></div>
         <div class="satir pasif"><span>🌌 Gece / Samanyolu</span><span class="sag">Yakında</span></div>
         <div class="satir pasif"><span>📷 Kamera hesapları</span><span class="sag">Yakında</span></div>
         <div class="satir pasif"><span>🔭 Kamera ekranı (AR)</span><span class="sag">Yakında</span></div>
@@ -63,6 +84,10 @@
       <div class="liste">
         <div class="satir"><span>Harita türü</span>
           <select id="haritaTuru"><option value="sokak">Sokak</option><option value="uydu">Uydu</option><option value="topo">Arazi</option></select></div>
+        <div class="satir"><span>Drone rüzgâr sınırı (m/s)</span>
+          <input id="ruzgarSinir" type="number" step="0.1" min="3" max="20" inputmode="decimal" class="sayi-kutu"></div>
+        <div class="satir"><span>Havalimanı uyarı mesafesi (km)</span>
+          <input id="yaricapKm" type="number" step="1" min="1" max="50" inputmode="numeric" class="sayi-kutu"></div>
         <div class="satir"><span>Sürüm</span><span class="sag" id="surum"></span></div>
       </div>
       <p class="kucuk">Harita © OpenStreetMap katkıcıları. Uydu © Esri. Arazi © OpenTopoMap.</p>
@@ -95,11 +120,13 @@
 <nav class="sekmeler">
   <button data-sayfa="harita" class="aktif">🗺<span>Harita</span></button>
   <button data-sayfa="saatler">🕒<span>Saatler</span></button>
+  <button data-sayfa="drone">🚁<span>Drone</span></button>
   <button data-sayfa="diger">⋯<span>Diğer</span></button>
 </nav>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="astro.js"></script>
+<script src="drone.js"></script>
 <script src="harita.js"></script>
 <script src="app.js"></script>
 </body>
