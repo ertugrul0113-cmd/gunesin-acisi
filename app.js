@@ -1,7 +1,7 @@
 // Güneşin Açısı — ekranlar
 (function () {
   'use strict';
-  const SURUM = '0.3';
+  const SURUM = '0.4';
   const $ = id => document.getElementById(id);
   const KAYIT = 'gunesinAcisi.v1';
 
@@ -11,15 +11,17 @@
     haritaTuru: 'sokak',
     hedef: null,
     drone: { yukseklik: 50, ruzgarSinir: Drone.VARSAYILAN.ruzgarSinir, yaricapKm: Drone.VARSAYILAN.yaricapKm },
-    kamera: { sensor: 'ff', mp: 24, odak: 14, diyafram: 2.8 }
+    kamera: { sensor: 'ff', mp: 24, odak: 14, diyafram: 2.8 },
+    ar: { gorus: 65, duzeltme: 0 }
   }, oku());
+  let arYol = null;
   let hava = null, havaHata = '', havaAnahtar = '', kp = null, havalimanlari = null;
   let gun = Astro.gunBasi(new Date());     // seçili günün başı (ms)
   let dakika = simdikiDakika();             // 0..1439
   let gunVerisi = null;
 
   function oku() { try { return JSON.parse(localStorage.getItem(KAYIT)) || {}; } catch (e) { return {}; } }
-  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru, hedef: durum.hedef, drone: durum.drone, kamera: durum.kamera })); } catch (e) { } }
+  function kaydet() { try { localStorage.setItem(KAYIT, JSON.stringify({ konum: durum.konum, haritaTuru: durum.haritaTuru, hedef: durum.hedef, drone: durum.drone, kamera: durum.kamera, ar: durum.ar })); } catch (e) { } }
   function simdikiDakika() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
 
   // Seçili an. Yaz saati geçişlerinde de doğru olsun diye yerel tarih üzerinden kurulur.
@@ -44,6 +46,7 @@
     const { enl, boy } = durum.konum;
     const ortaGun = new Date(gun + 12 * 3600000);
     gunVerisi = { g: Astro.gunesGunu(ortaGun, enl, boy), a: Astro.ayGunu(ortaGun, enl, boy) };
+    arYol = null;   // AR yolları gerektiğinde yeniden hesaplanır
     kaydiriciBoya();
     saatlerCiz();
   }
@@ -65,6 +68,36 @@
     hedefBilgiYaz(g);
     droneCiz();
     geceCiz();
+    if (AR.acikMi()) { $('arSaat').value = dakika; $('arTarih').textContent = arTarihYazi(); AR.cizIste(); }
+  }
+
+  // ---- Kamera ekranı (AR) ----
+  const arTarihYazi = () => `${new Date(gun).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} ${saat(secilenAn())}`;
+  function arVeri() {
+    const { enl, boy } = durum.konum, t = secilenAn();
+    if (!arYol) {
+      const orta = new Date(gun + 12 * 3600000);
+      arYol = {
+        gunes: Astro.gunlukYol(Astro.gunesKonum, orta, enl, boy, 10),
+        ay: Astro.gunlukYol(Astro.ayKonum, orta, enl, boy, 10),
+        gm: Astro.gunlukYol(Astro.galaktikKonum, orta, enl, boy, 10)
+      };
+    }
+    return {
+      gunesYol: arYol.gunes, ayYol: arYol.ay, gmYol: arYol.gm,
+      gunes: Astro.gunesKonum(t, enl, boy), ay: Astro.ayKonum(t, enl, boy), gm: Astro.galaktikKonum(t, enl, boy),
+      saatYazi: arTarihYazi(), yonAdi: Astro.yonAdi
+    };
+  }
+  function arAc() {
+    $('arSaat').value = dakika; $('arTarih').textContent = arTarihYazi(); $('arFov').textContent = durum.ar.gorus + '°';
+    AR.ac();
+  }
+  function arHizala(fn, ad) {
+    const { enl, boy } = durum.konum, k = fn(new Date(), enl, boy);
+    if (k.alt < -1) return alert(`${ad} şu an ufkun altında, hizalama yapılamaz.`);
+    if (!confirm(`Ekranın ortasındaki artıyı (+) şu an gökyüzündeki ${ad.toLowerCase()} üstüne getirin ve Tamam'a basın.`)) return;
+    AR.hizala(k.az);
   }
 
   // ---- Gece / Samanyolu ----
@@ -405,6 +438,17 @@
     $('yaricapKm').value = durum.drone.yaricapKm;
     $('ruzgarSinir').addEventListener('change', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (v >= 3 && v <= 20) { durum.drone.ruzgarSinir = v; kaydet(); } else e.target.value = durum.drone.ruzgarSinir; });
     $('yaricapKm').addEventListener('change', e => { const v = parseFloat(e.target.value); if (v >= 1 && v <= 50) { durum.drone.yaricapKm = v; kaydet(); } else e.target.value = durum.drone.yaricapKm; });
+    AR.kur(() => durum.ar, arVeri, kaydet);
+    $('arAcBtn').addEventListener('click', arAc);
+    $('arAcSatir').addEventListener('click', arAc);
+    $('arKapat').addEventListener('click', () => AR.kapat());
+    $('arSaat').addEventListener('input', e => { dakika = +e.target.value; anlikGuncelle(); });
+    $('arGunesHizala').addEventListener('click', () => arHizala(Astro.gunesKonum, 'Güneş'));
+    $('arAyHizala').addEventListener('click', () => arHizala(Astro.ayKonum, 'Ay'));
+    $('arSifirla').addEventListener('click', () => { durum.ar.duzeltme = 0; kaydet(); AR.cizIste(); });
+    const fov = d => { durum.ar.gorus = Math.max(20, Math.min(120, durum.ar.gorus + d)); $('arFov').textContent = durum.ar.gorus + '°'; kaydet(); AR.cizIste(); };
+    $('arFovEksi').addEventListener('click', () => fov(-1));
+    $('arFovArti').addEventListener('click', () => fov(1));
     kameraAyarCiz($('kameraAyar1')); kameraAyarCiz($('kameraAyar2'));
     $('ndNormal').innerHTML = ENSTANTANELER.map((s, i) => `<option value="${i}" ${i === 6 ? 'selected' : ''}>${Kamera.sureYaz(s)}</option>`).join('');
     $('ndFiltre').innerHTML = NDLER.map((n, i) => `<option value="${i}" ${i === 6 ? 'selected' : ''}>${n[1]}</option>`).join('');

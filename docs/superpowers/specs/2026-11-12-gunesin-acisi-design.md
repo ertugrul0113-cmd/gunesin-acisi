@@ -39,6 +39,11 @@ Kullanıcı: tek kişi (uygulama sahibi), DJI Avata 360 drone kullanıyor. Hesap
 5. **Kamera ekranı (AR)** — iPhone kamerası + pusula/eğim sensörü ile güneş ve ayın gün içi yolu
    görüntünün üstüne çizilir. iOS izin ister; pusula hassasiyeti sınırlıdır, ekranda belirtilir.
 
+## Durum (2026-11-12)
+- 0.2: aşama 1 + 2. 0.3: aşama 3 (Gece sekmesi, 30 gecelik Samanyolu takvimi) + aşama 4 (Diğer > Kamera hesapları).
+- 0.4: aşama 5 (AR). Yön: DeviceOrientation dönüş matrisi; iPhone'da webkitCompassHeading ile kuzeye bağlanır.
+  Pusula hatası için "Güneşe/Aya hizala" düzeltmesi ve görüş açısı ayarı (varsayılan 65°) var; telefonda denenmedi.
+
 ## Teknik yapı
 - Düz HTML/JS, derleme yok (sipariş kontrol uygulamasıyla aynı yaklaşım).
 - Dosyalar:

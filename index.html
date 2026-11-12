@@ -36,6 +36,7 @@
       <span><i style="background:var(--gm)"></i>Samanyolu</span>
     </div>
     <div id="hedefBilgi" class="hedef-bilgi gizli"></div>
+    <button id="arAcBtn" class="harita-btn ar-ac-btn">🔭 AR</button>
   </section>
 
   <!-- GECE -->
@@ -120,7 +121,7 @@
       <h3>Araçlar</h3>
       <div class="liste">
         <div class="satir tik" data-git="kamera"><span>📷 Kamera hesapları</span><span class="sag">Alan derinliği, ND, timelapse ›</span></div>
-        <div class="satir pasif"><span>🔭 Kamera ekranı (AR)</span><span class="sag">Yakında</span></div>
+        <div class="satir tik" id="arAcSatir"><span>🔭 Kamera ekranı (AR)</span><span class="sag">Güneş ve ay yolu ›</span></div>
       </div>
       <h3>Ayarlar</h3>
       <div class="liste">
@@ -159,6 +160,31 @@
   </div>
 </section>
 
+<!-- KAMERA EKRANI (AR) -->
+<div id="arEkran" class="ar-ekran gizli">
+  <video id="arVideo" playsinline muted autoplay></video>
+  <canvas id="arTuval"></canvas>
+  <div class="ar-ust">
+    <span id="arBilgi"></span>
+    <button id="arKapat" class="ikon-btn" aria-label="Kapat">✕</button>
+  </div>
+  <div class="ar-alt">
+    <div class="ar-satir">
+      <span id="arTarih" class="ar-tarih"></span>
+      <input type="range" id="arSaat" min="0" max="1439" step="1" aria-label="Saat">
+    </div>
+    <div class="ar-satir">
+      <button id="arGunesHizala" class="ar-btn">☀ Güneşe hizala</button>
+      <button id="arAyHizala" class="ar-btn">☾ Aya hizala</button>
+      <button id="arSifirla" class="ar-btn">Sıfırla</button>
+    </div>
+    <div class="ar-satir">
+      <span>Görüş açısı</span>
+      <button id="arFovEksi" class="ar-btn kucuk-btn">−</button><b id="arFov"></b><button id="arFovArti" class="ar-btn kucuk-btn">+</button>
+    </div>
+  </div>
+</div>
+
 <nav class="sekmeler">
   <button data-sayfa="harita" class="aktif">🗺<span>Harita</span></button>
   <button data-sayfa="saatler">🕒<span>Saatler</span></button>
@@ -172,6 +198,7 @@
 <script src="kamera.js"></script>
 <script src="drone.js"></script>
 <script src="harita.js"></script>
+<script src="ar.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
